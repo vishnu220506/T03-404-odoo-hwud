@@ -19,7 +19,11 @@
         "purchase",
         "stock",
     ],
-    "data": [],
+    "data": [
+    "security/ir.model.access.csv",
+    "views/snapshot_views.xml",
+    "views/menus.xml",
+],
     "application": True,
     "installable": True,
 }

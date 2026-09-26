@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_sme_autopilot_snapshot_list" model="ir.ui.view">
+        <field name="name">sme.autopilot.snapshot.list</field>
+        <field name="model">sme.autopilot.snapshot</field>
+        <field name="arch" type="xml">
+            <list string="Business Health Snapshots">
+                <field name="generated_at"/>
+                <field name="current_cash"/>
+                <field name="overdue_receivables"/>
+                <field name="supplier_payments_due"/>
+                <field name="projected_cash"/>
+                <field name="risk_level"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_sme_autopilot_snapshot_form" model="ir.ui.view">
+        <field name="name">sme.autopilot.snapshot.form</field>
+        <field name="model">sme.autopilot.snapshot</field>
+        <field name="arch" type="xml">
+            <form string="Business Health Snapshot">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="generated_at"/>
+                        <field name="company_id"/>
+                    </group>
+
+                    <group string="Cash-Flow Position">
+                        <field name="current_cash"/>
+                        <field name="overdue_receivables"/>
+                        <field name="supplier_payments_due"/>
+                        <field name="stalled_quotation_value"/>
+                        <field name="projected_cash"/>
+                        <field name="risk_level"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+</odoo>

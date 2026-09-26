@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_sme_autopilot_snapshots" model="ir.actions.act_window">
+        <field name="name">Business Health</field>
+        <field name="res_model">sme.autopilot.snapshot</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem
+        id="menu_sme_autopilot_root"
+        name="SME Autopilot"
+        sequence="10"
+    />
+
+    <menuitem
+        id="menu_sme_autopilot_business_health"
+        name="Business Health"
+        parent="menu_sme_autopilot_root"
+        action="action_sme_autopilot_snapshots"
+        sequence="10"
+    />
+
+</odoo>
