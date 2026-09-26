@@ -1,0 +1,60 @@
+<odoo>
+  <data>
+    <!-- explicit list view definition -->
+<!--
+    <record model="ir.ui.view" id="sme_autopilot.list">
+      <field name="name">sme_autopilot list</field>
+      <field name="model">sme_autopilot.sme_autopilot</field>
+      <field name="arch" type="xml">
+        <list>
+          <field name="name"/>
+          <field name="value"/>
+          <field name="value2"/>
+        </list>
+      </field>
+    </record>
+-->
+
+    <!-- actions opening views on models -->
+<!--
+    <record model="ir.actions.act_window" id="sme_autopilot.action_window">
+      <field name="name">sme_autopilot window</field>
+      <field name="res_model">sme_autopilot.sme_autopilot</field>
+      <field name="view_mode">list,form</field>
+    </record>
+-->
+
+    <!-- server action to the one above -->
+<!--
+    <record model="ir.actions.server" id="sme_autopilot.action_server">
+      <field name="name">sme_autopilot server</field>
+      <field name="model_id" ref="model_sme_autopilot_sme_autopilot"/>
+      <field name="state">code</field>
+      <field name="code">
+        action = {
+          "type": "ir.actions.act_window",
+          "view_mode": "list,form",
+          "res_model": model._name,
+        }
+      </field>
+    </record>
+-->
+
+    <!-- Top menu item -->
+<!--
+    <menuitem name="sme_autopilot" id="sme_autopilot.menu_root"/>
+-->
+    <!-- menu categories -->
+<!--
+    <menuitem name="Menu 1" id="sme_autopilot.menu_1" parent="sme_autopilot.menu_root"/>
+    <menuitem name="Menu 2" id="sme_autopilot.menu_2" parent="sme_autopilot.menu_root"/>
+-->
+    <!-- actions -->
+<!--
+    <menuitem name="List" id="sme_autopilot.menu_1_list" parent="sme_autopilot.menu_1"
+              action="sme_autopilot.action_window"/>
+    <menuitem name="Server to list" id="sme_autopilot" parent="sme_autopilot.menu_2"
+              action="sme_autopilot.action_server"/>
+-->
+  </data>
+</odoo>
