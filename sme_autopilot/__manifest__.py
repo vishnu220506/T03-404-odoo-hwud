@@ -1,33 +1,25 @@
 {
-    'name': "sme_autopilot",
-
-    'summary': "Short (1 phrase/line) summary of the module's purpose",
-
-    'description': """
-Long description of module's purpose
+    "name": "SME Autopilot",
+    "version": "19.0.1.0.0",
+    "summary": "AI Cash-Flow Copilot for SMEs",
+    "description": """
+        SME Autopilot analyses Odoo business data to detect cash-flow risks,
+        explain the causes, recommend corrective actions, and support
+        human-approved follow-up actions.
     """,
-
-    'author': "My Company",
-    'website': "https://www.yourcompany.com",
-
-    # Categories can be used to filter modules in modules listing
-    # Check https://github.com/odoo/odoo/blob/15.0/odoo/addons/base/data/ir_module_category_data.xml
-    # for the full list
-    'category': 'Uncategorized',
-    'version': '0.1',
-
-    # any module necessary for this one to work correctly
-    'depends': ['base'],
-
-    # always loaded
-    'data': [
-        # 'security/ir.model.access.csv',
-        'views/views.xml',
-        'views/templates.xml',
+    "author": "Team 404",
+    "category": "Productivity",
+    "license": "LGPL-3",
+    "depends": [
+        "base",
+        "mail",
+        "crm",
+        "sale_management",
+        "account",
+        "purchase",
+        "stock",
     ],
-    # only loaded in demonstration mode
-    'demo': [
-        'demo/demo.xml',
-    ],
+    "data": [],
+    "application": True,
+    "installable": True,
 }
-
