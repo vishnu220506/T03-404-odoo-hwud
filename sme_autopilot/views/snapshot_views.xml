@@ -5,6 +5,7 @@
         <field name="name">sme.autopilot.snapshot.list</field>
         <field name="model">sme.autopilot.snapshot</field>
         <field name="arch" type="xml">
+
             <list string="Business Health Snapshots">
                 <field name="generated_at"/>
                 <field name="current_cash"/>
@@ -15,6 +16,7 @@
                 <field name="risk_level"/>
                 <field name="approval_status"/>
             </list>
+
         </field>
     </record>
 
@@ -105,19 +107,43 @@
                         <field
                             name="ai_explanation"
                             readonly="1"
-                            placeholder="Why is this happening?"
                         />
 
                         <field
                             name="ai_recommendation"
                             readonly="1"
-                            placeholder="What should the business do next?"
                         />
 
                         <field
                             name="ai_expected_impact"
                             readonly="1"
-                            placeholder="What is the expected impact?"
+                        />
+
+                    </group>
+
+                    <group
+                        string="Action Execution"
+                        invisible="approval_status != 'approved'"
+                    >
+
+                        <field
+                            name="executed_at"
+                            readonly="1"
+                        />
+
+                        <field
+                            name="execution_overdue_followups"
+                            readonly="1"
+                        />
+
+                        <field
+                            name="execution_stalled_followups"
+                            readonly="1"
+                        />
+
+                        <field
+                            name="execution_result"
+                            readonly="1"
                         />
 
                     </group>

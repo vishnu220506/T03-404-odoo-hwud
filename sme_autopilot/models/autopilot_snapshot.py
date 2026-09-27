@@ -95,6 +95,26 @@ class SMEAutopilotSnapshot(models.Model):
         required=True,
     )
 
+    executed_at = fields.Datetime(
+        string="Executed At",
+        readonly=True,
+    )
+
+    execution_overdue_followups = fields.Integer(
+        string="Overdue Receivable Follow-Ups",
+        readonly=True,
+    )
+
+    execution_stalled_followups = fields.Integer(
+        string="Stalled Quotation Follow-Ups",
+        readonly=True,
+    )
+
+    execution_result = fields.Text(
+        string="Execution Result",
+        readonly=True,
+    )
+
     company_id = fields.Many2one(
         "res.company",
         string="Company",
@@ -300,9 +320,7 @@ STRICT RULES
                     ["content"]["parts"][0]["text"]
                 )
 
-                insight = json.loads(ai_text)
-
-                return insight
+                return json.loads(ai_text)
 
             except (
                 requests.RequestException,
@@ -438,7 +456,7 @@ STRICT RULES
         )
 
         if existing_activity:
-            return
+            return "existing"
 
         target.activity_schedule(
             "mail.mail_activity_data_todo",
@@ -446,6 +464,8 @@ STRICT RULES
             summary=summary,
             note=note,
         )
+
+        return "created"
 
     def action_approve_recommendation(self):
         today = fields.Date.context_today(self)
@@ -466,8 +486,13 @@ STRICT RULES
                 ("date_order", "<=", stalled_before),
             ])
 
+            overdue_followups = 0
+            stalled_followups = 0
+            created_count = 0
+            existing_count = 0
+
             for invoice in overdue_invoices:
-                record._schedule_follow_up_once(
+                result = record._schedule_follow_up_once(
                     target=invoice,
                     summary=(
                         "SME Autopilot: Follow up overdue receivable"
@@ -479,8 +504,15 @@ STRICT RULES
                     deadline=today + timedelta(days=1),
                 )
 
+                overdue_followups += 1
+
+                if result == "created":
+                    created_count += 1
+                else:
+                    existing_count += 1
+
             for quotation in stalled_quotations:
-                record._schedule_follow_up_once(
+                result = record._schedule_follow_up_once(
                     target=quotation,
                     summary=(
                         "SME Autopilot: Follow up stalled quotation"
@@ -492,11 +524,61 @@ STRICT RULES
                     deadline=today + timedelta(days=1),
                 )
 
+                stalled_followups += 1
+
+                if result == "created":
+                    created_count += 1
+                else:
+                    existing_count += 1
+
+            record.execution_overdue_followups = overdue_followups
+            record.execution_stalled_followups = stalled_followups
+            record.executed_at = fields.Datetime.now()
             record.approval_status = "approved"
+
+            total_followups = (
+                overdue_followups
+                + stalled_followups
+            )
+
+            if total_followups == 0:
+                record.execution_result = (
+                    "No eligible overdue receivables or stalled "
+                    "quotations required a follow-up."
+                )
+
+            elif created_count > 0 and existing_count == 0:
+                record.execution_result = (
+                    "Human-approved Odoo follow-up activities "
+                    "created successfully."
+                )
+
+            elif created_count == 0 and existing_count > 0:
+                record.execution_result = (
+                    "Existing human-approved Odoo follow-up activities "
+                    "were retained. No duplicate activities were created."
+                )
+
+            else:
+                record.execution_result = (
+                    f"{total_followups} human-approved Odoo follow-up "
+                    f"activities are active: {created_count} new and "
+                    f"{existing_count} existing. Duplicate protection "
+                    "was applied."
+                )
 
     def action_reject_recommendation(self):
         for record in self:
             record.approval_status = "rejected"
+
+            record.execution_overdue_followups = 0
+            record.execution_stalled_followups = 0
+            record.executed_at = False
+
+            record.execution_result = (
+                "Recommendation rejected. "
+                "No follow-up action was executed."
+            )
 
     def action_analyse_business(self):
         today = fields.Date.context_today(self)
@@ -540,6 +622,11 @@ STRICT RULES
             )
 
             record.generated_at = fields.Datetime.now()
+
             record.approval_status = "pending"
+            record.executed_at = False
+            record.execution_overdue_followups = 0
+            record.execution_stalled_followups = 0
+            record.execution_result = False
 
             record._generate_ai_insight()
