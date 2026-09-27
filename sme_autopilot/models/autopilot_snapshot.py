@@ -87,7 +87,8 @@ class SMEAutopilotSnapshot(models.Model):
 
     def action_analyse_business(self):
         today = fields.Date.context_today(self)
-        horizon_date = today + timedelta(days=14)
+        vendor_horizon = today + timedelta(days=14)
+        stalled_before = fields.Datetime.now() - timedelta(days=7)
 
         for record in self:
             overdue_invoices = self.env["account.move"].search([
@@ -103,8 +104,14 @@ class SMEAutopilotSnapshot(models.Model):
                 ("move_type", "=", "in_invoice"),
                 ("state", "=", "posted"),
                 ("invoice_date_due", ">=", today),
-                ("invoice_date_due", "<=", horizon_date),
+                ("invoice_date_due", "<=", vendor_horizon),
                 ("amount_residual", ">", 0),
+            ])
+
+            stalled_quotations = self.env["sale.order"].search([
+                ("company_id", "=", record.company_id.id),
+                ("state", "in", ["draft", "sent"]),
+                ("date_order", "<=", stalled_before),
             ])
 
             record.overdue_receivables = sum(
@@ -113,6 +120,10 @@ class SMEAutopilotSnapshot(models.Model):
 
             record.supplier_payments_due = sum(
                 upcoming_vendor_bills.mapped("amount_residual")
+            )
+
+            record.stalled_quotation_value = sum(
+                stalled_quotations.mapped("amount_total")
             )
 
             record.generated_at = fields.Datetime.now()
