@@ -44,7 +44,7 @@
                         <field name="current_cash"/>
                         <field name="overdue_receivables" readonly="1"/>
                         <field name="expected_receipts"/>
-                        <field name="supplier_payments_due"/>
+                        <field name="supplier_payments_due" readonly="1"/>
                         <field name="other_commitments"/>
                         <field name="stalled_quotation_value"/>
                         <field name="projected_cash" readonly="1"/>

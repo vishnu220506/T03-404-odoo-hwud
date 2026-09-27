@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from odoo import api, fields, models
 
 
@@ -85,6 +87,7 @@ class SMEAutopilotSnapshot(models.Model):
 
     def action_analyse_business(self):
         today = fields.Date.context_today(self)
+        horizon_date = today + timedelta(days=14)
 
         for record in self:
             overdue_invoices = self.env["account.move"].search([
@@ -95,6 +98,21 @@ class SMEAutopilotSnapshot(models.Model):
                 ("amount_residual", ">", 0),
             ])
 
+            upcoming_vendor_bills = self.env["account.move"].search([
+                ("company_id", "=", record.company_id.id),
+                ("move_type", "=", "in_invoice"),
+                ("state", "=", "posted"),
+                ("invoice_date_due", ">=", today),
+                ("invoice_date_due", "<=", horizon_date),
+                ("amount_residual", ">", 0),
+            ])
+
             record.overdue_receivables = sum(
                 overdue_invoices.mapped("amount_residual")
             )
+
+            record.supplier_payments_due = sum(
+                upcoming_vendor_bills.mapped("amount_residual")
+            )
+
+            record.generated_at = fields.Datetime.now()
