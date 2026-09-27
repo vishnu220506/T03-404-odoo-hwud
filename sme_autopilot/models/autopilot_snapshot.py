@@ -20,9 +20,16 @@ class SMEAutopilotSnapshot(models.Model):
 
     current_cash = fields.Monetary(string="Current Cash")
     overdue_receivables = fields.Monetary(string="Overdue Receivables")
+    expected_receipts = fields.Monetary(string="Expected Receipts")
     supplier_payments_due = fields.Monetary(string="Supplier Payments Due")
+    other_commitments = fields.Monetary(string="Other Commitments")
     stalled_quotation_value = fields.Monetary(string="Stalled Quotations")
-    projected_cash = fields.Monetary(string="Projected Cash")
+
+    projected_cash = fields.Monetary(
+        string="Projected Cash",
+        compute="_compute_projected_cash",
+        store=True,
+    )
 
     risk_level = fields.Selection(
         [
@@ -48,6 +55,21 @@ class SMEAutopilotSnapshot(models.Model):
         string="Currency",
         readonly=True,
     )
+
+    @api.depends(
+        "current_cash",
+        "expected_receipts",
+        "supplier_payments_due",
+        "other_commitments",
+    )
+    def _compute_projected_cash(self):
+        for record in self:
+            record.projected_cash = (
+                record.current_cash
+                + record.expected_receipts
+                - record.supplier_payments_due
+                - record.other_commitments
+            )
 
     @api.depends("projected_cash")
     def _compute_risk_level(self):

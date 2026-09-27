@@ -9,7 +9,9 @@
                 <field name="generated_at"/>
                 <field name="current_cash"/>
                 <field name="overdue_receivables"/>
+                <field name="expected_receipts"/>
                 <field name="supplier_payments_due"/>
+                <field name="other_commitments"/>
                 <field name="projected_cash"/>
                 <field name="risk_level"/>
             </list>
@@ -31,10 +33,12 @@
                     <group string="Cash-Flow Position">
                         <field name="current_cash"/>
                         <field name="overdue_receivables"/>
+                        <field name="expected_receipts"/>
                         <field name="supplier_payments_due"/>
+                        <field name="other_commitments"/>
                         <field name="stalled_quotation_value"/>
-                        <field name="projected_cash"/>
-                        <field name="risk_level"/>
+                        <field name="projected_cash" readonly="1"/>
+                        <field name="risk_level" readonly="1"/>
                     </group>
                 </sheet>
             </form>
