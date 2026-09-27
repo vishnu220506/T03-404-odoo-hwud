@@ -1,6 +1,14 @@
+import json
+import logging
+import os
 from datetime import timedelta
 
+import requests
+
 from odoo import api, fields, models
+
+
+_logger = logging.getLogger(__name__)
 
 
 class SMEAutopilotSnapshot(models.Model):
@@ -108,6 +116,163 @@ class SMEAutopilotSnapshot(models.Model):
             else:
                 record.risk_level = "low"
 
+    def _generate_ai_insight(self):
+        self.ensure_one()
+
+        api_key = os.getenv("GEMINI_API_KEY")
+
+        if not api_key:
+            self.ai_explanation = (
+                "AI analysis is unavailable because the Gemini API key "
+                "is not configured for the Odoo process."
+            )
+            self.ai_recommendation = (
+                "Configure GEMINI_API_KEY and run Analyse Business again."
+            )
+            self.ai_expected_impact = (
+                "No AI-generated action has been approved or executed."
+            )
+            return
+
+        currency = self.currency_id.name or "AED"
+
+        prompt = f"""
+You are an AI cash-flow copilot embedded inside Odoo for an SME.
+
+Analyse only the business information supplied below.
+
+BUSINESS DATA
+
+Current Cash: {currency} {self.current_cash:.2f}
+Overdue Receivables: {currency} {self.overdue_receivables:.2f}
+Expected Receipts: {currency} {self.expected_receipts:.2f}
+Supplier Payments Due: {currency} {self.supplier_payments_due:.2f}
+Other Commitments: {currency} {self.other_commitments:.2f}
+Stalled Quotations: {currency} {self.stalled_quotation_value:.2f}
+Projected Cash: {currency} {self.projected_cash:.2f}
+Risk Level: {self.risk_level}
+
+TASK
+
+Produce:
+1. A concise explanation of why the cash-flow risk exists.
+2. Specific recommended actions for the SME.
+3. A concise description of the expected impact.
+
+STRICT RULES
+
+- Use only the business data supplied above.
+- Do not invent financial amounts.
+- Do not invent customers, suppliers, dates, probabilities or savings.
+- Overdue receivables are unpaid amounts, not guaranteed collections.
+- Stalled quotations are sales pipeline, not guaranteed revenue or cash.
+- Do not treat quotations as confirmed receipts.
+- Do not promise that the risk level will improve.
+- Expected impact must be conditional, not guaranteed.
+- Recommendations require human approval before execution.
+- Do not claim that any recommended action has already been performed.
+- Keep the answer professional and concise.
+"""
+
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": prompt,
+                        }
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "responseFormat": {
+                    "text": {
+                        "mimeType": "APPLICATION_JSON",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "explanation": {
+                                    "type": "string",
+                                    "description": (
+                                        "Concise explanation of the "
+                                        "cash-flow problem."
+                                    ),
+                                },
+                                "recommendation": {
+                                    "type": "string",
+                                    "description": (
+                                        "Specific actions requiring "
+                                        "human approval."
+                                    ),
+                                },
+                                "expected_impact": {
+                                    "type": "string",
+                                    "description": (
+                                        "Conditional expected business "
+                                        "impact without guarantees."
+                                    ),
+                                },
+                            },
+                            "required": [
+                                "explanation",
+                                "recommendation",
+                                "expected_impact",
+                            ],
+                        },
+                    }
+                }
+            },
+        }
+
+        try:
+            response = requests.post(
+                (
+                    "https://generativelanguage.googleapis.com/"
+                    "v1beta/models/"
+                    "gemini-3.8-flash:generateContent"
+                ),
+                headers={
+                    "x-goog-api-key": api_key,
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=30,
+            )
+
+            response.raise_for_status()
+
+            response_data = response.json()
+
+            ai_text = (
+                response_data["candidates"][0]
+                ["content"]["parts"][0]["text"]
+            )
+
+            insight = json.loads(ai_text)
+
+            self.ai_explanation = insight["explanation"]
+            self.ai_recommendation = insight["recommendation"]
+            self.ai_expected_impact = insight["expected_impact"]
+
+        except Exception:
+            _logger.exception(
+                "Gemini AI analysis failed for snapshot %s",
+                self.id,
+            )
+
+            self.ai_explanation = (
+                "The business figures were analysed successfully, "
+                "but the AI insight service is temporarily unavailable."
+            )
+
+            self.ai_recommendation = (
+                "Retry Analyse Business after checking the AI connection."
+            )
+
+            self.ai_expected_impact = (
+                "No AI-generated action has been approved or executed."
+            )
+
     def action_analyse_business(self):
         today = fields.Date.context_today(self)
         vendor_horizon = today + timedelta(days=14)
@@ -150,3 +315,6 @@ class SMEAutopilotSnapshot(models.Model):
             )
 
             record.generated_at = fields.Datetime.now()
+            record.approval_status = "pending"
+
+            record._generate_ai_insight()
