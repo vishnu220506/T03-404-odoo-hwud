@@ -1,4 +1,4 @@
-from odoo import fields, models
+from odoo import api, fields, models
 
 
 class SMEAutopilotSnapshot(models.Model):
@@ -32,8 +32,8 @@ class SMEAutopilotSnapshot(models.Model):
             ("critical", "Critical"),
         ],
         string="Risk Level",
-        default="low",
-        required=True,
+        compute="_compute_risk_level",
+        store=True,
     )
 
     company_id = fields.Many2one(
@@ -48,3 +48,15 @@ class SMEAutopilotSnapshot(models.Model):
         string="Currency",
         readonly=True,
     )
+
+    @api.depends("projected_cash")
+    def _compute_risk_level(self):
+        for record in self:
+            if record.projected_cash < 0:
+                record.risk_level = "critical"
+            elif record.projected_cash < 10000:
+                record.risk_level = "high"
+            elif record.projected_cash < 25000:
+                record.risk_level = "medium"
+            else:
+                record.risk_level = "low"
