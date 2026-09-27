@@ -181,8 +181,17 @@ TASK
 Produce:
 
 1. A concise explanation of why the cash-flow risk exists.
-2. Specific recommended actions for the SME.
+2. A concise recommendation containing only the supported actions below.
 3. A concise description of the expected impact.
+
+SUPPORTED HUMAN-APPROVED ACTIONS
+
+The Odoo application can execute only these actions:
+
+1. Create an Odoo follow-up activity for overdue receivables.
+2. Create an Odoo commercial follow-up activity for stalled quotations.
+
+The recommendation must contain only these two executable actions.
 
 STRICT RULES
 
@@ -191,11 +200,15 @@ STRICT RULES
 - Do not invent customers, suppliers, dates, probabilities or savings.
 - Overdue receivables are unpaid amounts, not guaranteed collections.
 - Stalled quotations are sales pipeline, not guaranteed revenue or cash.
-- Do not treat quotations as confirmed receipts.
-- Always use the term "stalled quotations".
+- Do not treat stalled quotations as confirmed receipts.
+- Supplier payments and other commitments may be explained as cash-flow
+  drivers, but do not recommend changing, deferring, splitting or
+  rescheduling them.
+- Do not recommend changing invoices, payments, purchases or accounting data.
+- Do not claim that a follow-up guarantees payment or sales conversion.
 - Do not promise that the risk level will improve.
 - Expected impact must be conditional, not guaranteed.
-- Recommendations require human approval before execution.
+- No action happens until the user explicitly approves it.
 - Do not claim that any recommended action has already been performed.
 - Keep the answer professional and concise.
 """
@@ -230,7 +243,8 @@ STRICT RULES
                                 "recommendation": {
                                     "type": "string",
                                     "description": (
-                                        "Specific actions requiring "
+                                        "Only the two supported Odoo "
+                                        "follow-up actions requiring "
                                         "human approval."
                                     ),
                                 },
