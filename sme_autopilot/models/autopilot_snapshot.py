@@ -82,3 +82,19 @@ class SMEAutopilotSnapshot(models.Model):
                 record.risk_level = "medium"
             else:
                 record.risk_level = "low"
+
+    def action_analyse_business(self):
+        today = fields.Date.context_today(self)
+
+        for record in self:
+            overdue_invoices = self.env["account.move"].search([
+                ("company_id", "=", record.company_id.id),
+                ("move_type", "=", "out_invoice"),
+                ("state", "=", "posted"),
+                ("invoice_date_due", "<", today),
+                ("amount_residual", ">", 0),
+            ])
+
+            record.overdue_receivables = sum(
+                overdue_invoices.mapped("amount_residual")
+            )

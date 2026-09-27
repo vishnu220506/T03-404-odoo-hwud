@@ -23,6 +23,16 @@
         <field name="model">sme.autopilot.snapshot</field>
         <field name="arch" type="xml">
             <form string="Business Health Snapshot">
+
+                <header>
+                    <button
+                        name="action_analyse_business"
+                        string="Analyse Business"
+                        type="object"
+                        class="btn-primary"
+                    />
+                </header>
+
                 <sheet>
                     <group>
                         <field name="name"/>
@@ -32,7 +42,7 @@
 
                     <group string="Cash-Flow Position">
                         <field name="current_cash"/>
-                        <field name="overdue_receivables"/>
+                        <field name="overdue_receivables" readonly="1"/>
                         <field name="expected_receipts"/>
                         <field name="supplier_payments_due"/>
                         <field name="other_commitments"/>
@@ -41,6 +51,7 @@
                         <field name="risk_level" readonly="1"/>
                     </group>
                 </sheet>
+
             </form>
         </field>
     </record>
