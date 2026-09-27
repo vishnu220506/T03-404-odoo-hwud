@@ -28,12 +28,29 @@ class SMEAutopilotSnapshot(models.Model):
         required=True,
     )
 
-    current_cash = fields.Monetary(string="Current Cash")
-    overdue_receivables = fields.Monetary(string="Overdue Receivables")
-    expected_receipts = fields.Monetary(string="Expected Receipts")
-    supplier_payments_due = fields.Monetary(string="Supplier Payments Due")
-    other_commitments = fields.Monetary(string="Other Commitments")
-    stalled_quotation_value = fields.Monetary(string="Stalled Quotations")
+    current_cash = fields.Monetary(
+        string="Current Cash"
+    )
+
+    overdue_receivables = fields.Monetary(
+        string="Overdue Receivables"
+    )
+
+    expected_receipts = fields.Monetary(
+        string="Expected Receipts"
+    )
+
+    supplier_payments_due = fields.Monetary(
+        string="Supplier Payments Due"
+    )
+
+    other_commitments = fields.Monetary(
+        string="Other Commitments"
+    )
+
+    stalled_quotation_value = fields.Monetary(
+        string="Stalled Quotations"
+    )
 
     projected_cash = fields.Monetary(
         string="Projected Cash",
@@ -126,12 +143,15 @@ class SMEAutopilotSnapshot(models.Model):
                 "AI analysis is unavailable because the Gemini API key "
                 "is not configured for the Odoo process."
             )
+
             self.ai_recommendation = (
                 "Configure GEMINI_API_KEY and run Analyse Business again."
             )
+
             self.ai_expected_impact = (
                 "No AI-generated action has been approved or executed."
             )
+
             return
 
         currency = self.currency_id.name or "AED"
@@ -155,6 +175,7 @@ Risk Level: {self.risk_level}
 TASK
 
 Produce:
+
 1. A concise explanation of why the cash-flow risk exists.
 2. Specific recommended actions for the SME.
 3. A concise description of the expected impact.
@@ -167,6 +188,7 @@ STRICT RULES
 - Overdue receivables are unpaid amounts, not guaranteed collections.
 - Stalled quotations are sales pipeline, not guaranteed revenue or cash.
 - Do not treat quotations as confirmed receipts.
+- Always use the term "stalled quotations".
 - Do not promise that the risk level will improve.
 - Expected impact must be conditional, not guaranteed.
 - Recommendations require human approval before execution.
@@ -272,6 +294,53 @@ STRICT RULES
             self.ai_expected_impact = (
                 "No AI-generated action has been approved or executed."
             )
+
+    def action_approve_recommendation(self):
+        today = fields.Date.context_today(self)
+        stalled_before = fields.Datetime.now() - timedelta(days=7)
+
+        for record in self:
+            overdue_invoices = self.env["account.move"].search([
+                ("company_id", "=", record.company_id.id),
+                ("move_type", "=", "out_invoice"),
+                ("state", "=", "posted"),
+                ("invoice_date_due", "<", today),
+                ("amount_residual", ">", 0),
+            ])
+
+            stalled_quotations = self.env["sale.order"].search([
+                ("company_id", "=", record.company_id.id),
+                ("state", "in", ["draft", "sent"]),
+                ("date_order", "<=", stalled_before),
+            ])
+
+            for invoice in overdue_invoices:
+                invoice.activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    date_deadline=today + timedelta(days=1),
+                    summary="SME Autopilot: Follow up overdue receivable",
+                    note=(
+                        "Human-approved follow-up created by SME Autopilot "
+                        "after cash-flow analysis."
+                    ),
+                )
+
+            for quotation in stalled_quotations:
+                quotation.activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    date_deadline=today + timedelta(days=1),
+                    summary="SME Autopilot: Follow up stalled quotation",
+                    note=(
+                        "Human-approved commercial follow-up created by "
+                        "SME Autopilot after cash-flow analysis."
+                    ),
+                )
+
+            record.approval_status = "approved"
+
+    def action_reject_recommendation(self):
+        for record in self:
+            record.approval_status = "rejected"
 
     def action_analyse_business(self):
         today = fields.Date.context_today(self)

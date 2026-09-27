@@ -22,18 +22,43 @@
         <field name="name">sme.autopilot.snapshot.form</field>
         <field name="model">sme.autopilot.snapshot</field>
         <field name="arch" type="xml">
+
             <form string="Business Health Snapshot">
 
                 <header>
+
                     <button
                         name="action_analyse_business"
                         string="Analyse Business"
                         type="object"
                         class="btn-primary"
                     />
+
+                    <button
+                        name="action_approve_recommendation"
+                        string="Approve &amp; Create Follow-Ups"
+                        type="object"
+                        class="btn-primary"
+                        invisible="approval_status != 'pending'"
+                    />
+
+                    <button
+                        name="action_reject_recommendation"
+                        string="Reject Recommendation"
+                        type="object"
+                        invisible="approval_status != 'pending'"
+                    />
+
+                    <field
+                        name="approval_status"
+                        widget="statusbar"
+                        statusbar_visible="pending,approved,rejected"
+                    />
+
                 </header>
 
                 <sheet>
+
                     <group>
                         <field name="name"/>
                         <field name="generated_at"/>
@@ -41,25 +66,66 @@
                     </group>
 
                     <group string="Cash-Flow Position">
+
                         <field name="current_cash"/>
-                        <field name="overdue_receivables" readonly="1"/>
+
+                        <field
+                            name="overdue_receivables"
+                            readonly="1"
+                        />
+
                         <field name="expected_receipts"/>
-                        <field name="supplier_payments_due" readonly="1"/>
+
+                        <field
+                            name="supplier_payments_due"
+                            readonly="1"
+                        />
+
                         <field name="other_commitments"/>
-                        <field name="stalled_quotation_value" readonly="1"/>
-                        <field name="projected_cash" readonly="1"/>
-                        <field name="risk_level" readonly="1"/>
+
+                        <field
+                            name="stalled_quotation_value"
+                            readonly="1"
+                        />
+
+                        <field
+                            name="projected_cash"
+                            readonly="1"
+                        />
+
+                        <field
+                            name="risk_level"
+                            readonly="1"
+                        />
+
                     </group>
 
                     <group string="AI Cash-Flow Copilot">
-                        <field name="ai_explanation" placeholder="Why is this happening?"/>
-                        <field name="ai_recommendation" placeholder="What should the business do next?"/>
-                        <field name="ai_expected_impact" placeholder="What is the expected impact?"/>
-                        <field name="approval_status"/>
+
+                        <field
+                            name="ai_explanation"
+                            readonly="1"
+                            placeholder="Why is this happening?"
+                        />
+
+                        <field
+                            name="ai_recommendation"
+                            readonly="1"
+                            placeholder="What should the business do next?"
+                        />
+
+                        <field
+                            name="ai_expected_impact"
+                            readonly="1"
+                            placeholder="What is the expected impact?"
+                        />
+
                     </group>
+
                 </sheet>
 
             </form>
+
         </field>
     </record>
 
