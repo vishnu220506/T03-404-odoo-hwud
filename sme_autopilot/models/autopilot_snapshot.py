@@ -1,6 +1,8 @@
 import json
 import logging
 import os
+import random
+import time
 from datetime import timedelta
 
 import requests
@@ -133,30 +135,12 @@ class SMEAutopilotSnapshot(models.Model):
             else:
                 record.risk_level = "low"
 
-    def _generate_ai_insight(self):
+    def _build_ai_prompt(self):
         self.ensure_one()
-
-        api_key = os.getenv("GEMINI_API_KEY")
-
-        if not api_key:
-            self.ai_explanation = (
-                "AI analysis is unavailable because the Gemini API key "
-                "is not configured for the Odoo process."
-            )
-
-            self.ai_recommendation = (
-                "Configure GEMINI_API_KEY and run Analyse Business again."
-            )
-
-            self.ai_expected_impact = (
-                "No AI-generated action has been approved or executed."
-            )
-
-            return
 
         currency = self.currency_id.name or "AED"
 
-        prompt = f"""
+        return f"""
 You are an AI cash-flow copilot embedded inside Odoo for an SME.
 
 Analyse only the business information supplied below.
@@ -196,12 +180,15 @@ STRICT RULES
 - Keep the answer professional and concise.
 """
 
-        payload = {
+    def _build_gemini_payload(self):
+        self.ensure_one()
+
+        return {
             "contents": [
                 {
                     "parts": [
                         {
-                            "text": prompt,
+                            "text": self._build_ai_prompt(),
                         }
                     ]
                 }
@@ -240,60 +227,225 @@ STRICT RULES
                                 "recommendation",
                                 "expected_impact",
                             ],
+                            "additionalProperties": False,
                         },
                     }
                 }
             },
         }
 
-        try:
-            response = requests.post(
-                (
-                    "https://generativelanguage.googleapis.com/"
-                    "v1beta/models/"
-                    "gemini-3.8-flash:generateContent"
-                ),
-                headers={
-                    "x-goog-api-key": api_key,
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-                timeout=30,
-            )
+    def _request_gemini_model(
+        self,
+        model_name,
+        payload,
+        api_key,
+        attempts=2,
+    ):
+        self.ensure_one()
 
-            response.raise_for_status()
+        url = (
+            "https://generativelanguage.googleapis.com/"
+            f"v1beta/models/{model_name}:generateContent"
+        )
 
-            response_data = response.json()
+        transient_statuses = {
+            408,
+            429,
+            500,
+            502,
+            503,
+            504,
+        }
 
-            ai_text = (
-                response_data["candidates"][0]
-                ["content"]["parts"][0]["text"]
-            )
+        last_error = None
 
-            insight = json.loads(ai_text)
+        for attempt in range(attempts):
+            try:
+                response = requests.post(
+                    url,
+                    headers={
+                        "x-goog-api-key": api_key,
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                    timeout=20,
+                )
 
-            self.ai_explanation = insight["explanation"]
-            self.ai_recommendation = insight["recommendation"]
-            self.ai_expected_impact = insight["expected_impact"]
+                if (
+                    response.status_code in transient_statuses
+                    and attempt < attempts - 1
+                ):
+                    delay = (
+                        1.0 * (2 ** attempt)
+                        + random.uniform(0.0, 0.5)
+                    )
 
-        except Exception:
-            _logger.exception(
-                "Gemini AI analysis failed for snapshot %s",
-                self.id,
-            )
+                    _logger.warning(
+                        "Gemini model %s returned HTTP %s. "
+                        "Retrying in %.2f seconds.",
+                        model_name,
+                        response.status_code,
+                        delay,
+                    )
 
+                    time.sleep(delay)
+                    continue
+
+                response.raise_for_status()
+
+                response_data = response.json()
+
+                ai_text = (
+                    response_data["candidates"][0]
+                    ["content"]["parts"][0]["text"]
+                )
+
+                insight = json.loads(ai_text)
+
+                return insight
+
+            except (
+                requests.RequestException,
+                KeyError,
+                IndexError,
+                TypeError,
+                ValueError,
+            ) as exc:
+                last_error = exc
+
+                status_code = None
+
+                if isinstance(exc, requests.RequestException):
+                    if exc.response is not None:
+                        status_code = exc.response.status_code
+
+                retryable = (
+                    status_code is None
+                    or status_code in transient_statuses
+                )
+
+                if retryable and attempt < attempts - 1:
+                    delay = (
+                        1.0 * (2 ** attempt)
+                        + random.uniform(0.0, 0.5)
+                    )
+
+                    _logger.warning(
+                        "Gemini model %s request failed. "
+                        "Retrying in %.2f seconds.",
+                        model_name,
+                        delay,
+                    )
+
+                    time.sleep(delay)
+                    continue
+
+                raise
+
+        if last_error:
+            raise last_error
+
+        raise RuntimeError(
+            f"Gemini request failed for model {model_name}"
+        )
+
+    def _generate_ai_insight(self):
+        self.ensure_one()
+
+        api_key = os.getenv("GEMINI_API_KEY")
+
+        if not api_key:
             self.ai_explanation = (
-                "The business figures were analysed successfully, "
-                "but the AI insight service is temporarily unavailable."
+                "AI analysis is unavailable because the Gemini API key "
+                "is not configured for the Odoo process."
             )
 
             self.ai_recommendation = (
-                "Retry Analyse Business after checking the AI connection."
+                "Configure GEMINI_API_KEY and run Analyse Business again."
             )
 
             self.ai_expected_impact = (
                 "No AI-generated action has been approved or executed."
             )
+
+            return
+
+        payload = self._build_gemini_payload()
+
+        models_to_try = [
+            ("gemini-3.8-flash", 2),
+            ("gemini-3.5-flash-lite", 2),
+        ]
+
+        for model_name, attempts in models_to_try:
+            try:
+                insight = self._request_gemini_model(
+                    model_name=model_name,
+                    payload=payload,
+                    api_key=api_key,
+                    attempts=attempts,
+                )
+
+                self.ai_explanation = insight["explanation"]
+                self.ai_recommendation = insight["recommendation"]
+                self.ai_expected_impact = insight["expected_impact"]
+
+                _logger.info(
+                    "SME Autopilot AI analysis completed using %s "
+                    "for snapshot %s",
+                    model_name,
+                    self.id,
+                )
+
+                return
+
+            except Exception:
+                _logger.exception(
+                    "Gemini model %s failed for snapshot %s",
+                    model_name,
+                    self.id,
+                )
+
+        self.ai_explanation = (
+            "The business figures were analysed successfully, "
+            "but the AI insight service is temporarily unavailable."
+        )
+
+        self.ai_recommendation = (
+            "Retry Analyse Business after checking the AI connection."
+        )
+
+        self.ai_expected_impact = (
+            "No AI-generated action has been approved or executed."
+        )
+
+    def _schedule_follow_up_once(
+        self,
+        target,
+        summary,
+        note,
+        deadline,
+    ):
+        activity_type = self.env.ref(
+            "mail.mail_activity_data_todo"
+        )
+
+        existing_activity = target.activity_ids.filtered(
+            lambda activity: (
+                activity.activity_type_id == activity_type
+                and activity.summary == summary
+            )
+        )
+
+        if existing_activity:
+            return
+
+        target.activity_schedule(
+            "mail.mail_activity_data_todo",
+            date_deadline=deadline,
+            summary=summary,
+            note=note,
+        )
 
     def action_approve_recommendation(self):
         today = fields.Date.context_today(self)
@@ -315,25 +467,29 @@ STRICT RULES
             ])
 
             for invoice in overdue_invoices:
-                invoice.activity_schedule(
-                    "mail.mail_activity_data_todo",
-                    date_deadline=today + timedelta(days=1),
-                    summary="SME Autopilot: Follow up overdue receivable",
+                record._schedule_follow_up_once(
+                    target=invoice,
+                    summary=(
+                        "SME Autopilot: Follow up overdue receivable"
+                    ),
                     note=(
                         "Human-approved follow-up created by SME Autopilot "
                         "after cash-flow analysis."
                     ),
+                    deadline=today + timedelta(days=1),
                 )
 
             for quotation in stalled_quotations:
-                quotation.activity_schedule(
-                    "mail.mail_activity_data_todo",
-                    date_deadline=today + timedelta(days=1),
-                    summary="SME Autopilot: Follow up stalled quotation",
+                record._schedule_follow_up_once(
+                    target=quotation,
+                    summary=(
+                        "SME Autopilot: Follow up stalled quotation"
+                    ),
                     note=(
                         "Human-approved commercial follow-up created by "
                         "SME Autopilot after cash-flow analysis."
                     ),
+                    deadline=today + timedelta(days=1),
                 )
 
             record.approval_status = "approved"
