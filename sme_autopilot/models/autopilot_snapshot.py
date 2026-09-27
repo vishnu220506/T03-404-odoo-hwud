@@ -167,13 +167,13 @@ Analyse only the business information supplied below.
 
 BUSINESS DATA
 
-Current Cash: {currency} {self.current_cash:.2f}
-Overdue Receivables: {currency} {self.overdue_receivables:.2f}
-Expected Receipts: {currency} {self.expected_receipts:.2f}
-Supplier Payments Due: {currency} {self.supplier_payments_due:.2f}
-Other Commitments: {currency} {self.other_commitments:.2f}
-Stalled Quotations: {currency} {self.stalled_quotation_value:.2f}
-Projected Cash: {currency} {self.projected_cash:.2f}
+Current Cash: {currency} {self.current_cash:,.2f}
+Overdue Receivables: {currency} {self.overdue_receivables:,.2f}
+Expected Receipts: {currency} {self.expected_receipts:,.2f}
+Supplier Payments Due: {currency} {self.supplier_payments_due:,.2f}
+Other Commitments: {currency} {self.other_commitments:,.2f}
+Stalled Quotations: {currency} {self.stalled_quotation_value:,.2f}
+Projected Cash: {currency} {self.projected_cash:,.2f}
 Risk Level: {self.risk_level}
 
 TASK
