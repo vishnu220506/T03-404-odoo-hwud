@@ -45,6 +45,29 @@ class SMEAutopilotSnapshot(models.Model):
         store=True,
     )
 
+    ai_explanation = fields.Text(
+        string="Why Is This Happening?"
+    )
+
+    ai_recommendation = fields.Text(
+        string="Recommended Action"
+    )
+
+    ai_expected_impact = fields.Text(
+        string="Expected Impact"
+    )
+
+    approval_status = fields.Selection(
+        [
+            ("pending", "Pending Approval"),
+            ("approved", "Approved"),
+            ("rejected", "Rejected"),
+        ],
+        string="Action Status",
+        default="pending",
+        required=True,
+    )
+
     company_id = fields.Many2one(
         "res.company",
         string="Company",
